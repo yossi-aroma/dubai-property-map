@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>אזורי Freehold בדובאי — מפת משקיעים</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0F1419;
+    --panel: #171A20;
+    --border: #2A2F38;
+    --text: #EDE8DD;
+    --text-dim: #9A9488;
+    --text-faint: #6B6358;
+    --gold: #C9A86A;
+    --green: #5FA88A;
+    --coral: #D4685A;
+    --blue: #7BA8C9;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .app {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  .sidebar {
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    overflow-y: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .tab {
+    flex: 1;
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+    background: none;
+    border-top: none;
+    border-right: none;
+    border-left: none;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .tab.active {
+    color: var(--gold);
+    border-bottom-color: var(--gold);
+  }
+
+  .tab-panel {
+    display: none;
+    flex: 1;
+    overflow-y: auto;
+    flex-direction: column;
+  }
+
+  .tab-panel.active {
+    display: flex;
+  }
+
+  .guide-section {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .guide-section h3 {
+    font-family: 'Fraunces', serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--gold);
+    margin-bottom: 8px;
+  }
+
+  .guide-section p {
+    font-size: 12.5px;
+    color: #C9C3B5;
+    line-height: 1.65;
+    margin-bottom: 8px;
+  }
+
+  .guide-section p:last-child { margin-bottom: 0; }
+
+  .fee-table {
+    width: 100%;
+    font-size: 12px;
+    border-collapse: collapse;
+    margin-top: 4px;
+  }
+
+  .fee-table td {
+    padding: 6px 4px;
+    border-bottom: 1px solid var(--border);
+    color: #C9C3B5;
+  }
+
+  .fee-table td:last-child {
+    text-align: left;
+    color: var(--gold);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .visa-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .visa-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .visa-card .amount {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    color: var(--gold);
+    font-size: 13px;
+  }
+
+  .visa-card .label {
+    font-size: 11.5px;
+    color: var(--text-dim);
+    text-align: left;
+  }
+
+  .checklist {
+    list-style: none;
+    margin-top: 6px;
+  }
+
+  .checklist li {
+    font-size: 12.5px;
+    color: #C9C3B5;
+    line-height: 1.5;
+    padding-right: 20px;
+    position: relative;
+    margin-bottom: 8px;
+  }
+
+  .checklist li::before {
+    content: '✓';
+    position: absolute;
+    right: 0;
+    color: var(--green);
+    font-weight: 700;
+  }
+
+  .warning-box {
+    background: #D4685A15;
+    border: 1px solid #D4685A40;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: #E8A89E;
+    line-height: 1.55;
+    margin-top: 10px;
+  }
+
+  .warning-box strong { color: #F0B5A8; }
+
+  .glossary-term {
+    margin-bottom: 12px;
+  }
+
+  .glossary-term dt {
+    font-weight: 600;
+    font-size: 13px;
+    color: #F4EFE3;
+    margin-bottom: 2px;
+  }
+
+  .glossary-term dd {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .sidebar-header {
+    padding: 24px 20px 16px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--panel);
+    z-index: 5;
+  }
+
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-size: 24px;
+    font-weight: 600;
+    color: #F4EFE3;
+    line-height: 1.2;
+    margin-bottom: 10px;
+  }
+
+  .subtitle {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .legend-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    user-select: none;
+  }
+
+  .legend-chip.inactive { opacity: 0.35; }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .area-list {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .area-card {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .area-card:hover, .area-card.active {
+    background: #1D2128;
+  }
+
+  .area-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .area-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .area-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: #F4EFE3;
+    flex: 1;
+  }
+
+  .expand-arrow {
+    color: var(--text-faint);
+    font-size: 11px;
+  }
+
+  .area-meta {
+    font-size: 11.5px;
+    color: var(--text-dim);
+    margin-right: 15px;
+    line-height: 1.5;
+  }
+
+  .area-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 7px 0 5px 0;
+    margin-right: 15px;
+  }
+
+  .area-stat {
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+
+  .area-stat b {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .area-tag {
+    display: inline-block;
+    font-size: 10px;
+    border-radius: 5px;
+    padding: 1px 6px;
+    margin-top: 5px;
+    margin-right: 15px;
+    border: 1px solid;
+  }
+
+  .view-more-btn {
+    margin-top: 8px;
+    margin-right: 15px;
+    font-size: 11px;
+    color: var(--gold);
+    background: none;
+    border: 1px solid #C9A86A55;
+    border-radius: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,12,15,0.75);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    max-width: 560px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 26px;
+    position: relative;
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+  }
+
+  .modal-eyebrow {
+    font-size: 10.5px;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .modal-title {
+    font-family: 'Fraunces', serif;
+    font-size: 24px;
+    font-weight: 600;
+    color: #F4EFE3;
+    margin-bottom: 12px;
+  }
+
+  .modal-summary {
+    font-size: 13.5px;
+    color: #C9C3B5;
+    line-height: 1.7;
+    margin-bottom: 14px;
+  }
+
+  .modal-detail {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.7;
+    margin-bottom: 18px;
+    padding-right: 12px;
+    border-right: 2px solid #2A2F38;
+  }
+
+  .modal-section-title {
+    font-size: 11.5px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 8px;
+    margin-top: 18px;
+  }
+
+  .price-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 6px;
+  }
+
+  .price-table td {
+    padding: 7px 4px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12.5px;
+    color: #C9C3B5;
+  }
+
+  .price-table td:last-child {
+    text-align: left;
+    font-weight: 600;
+    color: #F4EFE3;
+    white-space: nowrap;
+  }
+
+  .modal-stats-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+
+  .modal-stat-box {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+
+  .modal-stat-box .label { font-size: 10.5px; color: var(--text-faint); margin-bottom: 3px; }
+  .modal-stat-box .value { font-size: 16px; font-weight: 700; color: var(--green); font-family: 'Fraunces', serif; }
+
+  .developer-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .developer-chip {
+    font-size: 11.5px;
+    color: var(--blue);
+    background: #7BA8C915;
+    border: 1px solid #7BA8C940;
+    border-radius: 20px;
+    padding: 4px 11px;
+  }
+
+  .modal-extra {
+    font-size: 12px;
+    color: #E8D5A8;
+    background: #C9A86A12;
+    border: 1px solid #C9A86A35;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 14px;
+    line-height: 1.6;
+  }
+
+  .tag-offplan { color: var(--gold); border-color: #C9A86A55; }
+  .tag-yield { color: var(--green); border-color: #5FA88A55; }
+
+  .map-container {
+    position: relative;
+  }
+
+  #map {
+    width: 100%;
+    height: 100%;
+    background: var(--bg);
+  }
+
+  .footer-note {
+    padding: 14px 20px;
+    font-size: 10.5px;
+    color: var(--text-faint);
+    line-height: 1.6;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Leaflet overrides */
+  .leaflet-popup-content-wrapper {
+    background: var(--panel);
+    color: var(--text);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .leaflet-popup-tip { background: var(--panel); }
+  .leaflet-popup-content { margin: 14px 16px; font-family: 'Inter', sans-serif; }
+  .popup-title { font-family: 'Fraunces', serif; font-weight: 600; font-size: 15px; color: #F4EFE3; margin-bottom: 4px; }
+  .popup-notes { font-size: 12px; color: #C9C3B5; line-height: 1.5; }
+  .leaflet-container { background: #0F1419; }
+  .leaflet-control-zoom a {
+    background: var(--panel) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+  }
+  .leaflet-control-attribution {
+    background: rgba(15,20,25,0.7) !important;
+    color: var(--text-faint) !important;
+  }
+  .leaflet-control-attribution a { color: var(--text-dim) !important; }
+
+  @media (max-width: 760px) {
+    .app {
+      grid-template-columns: 1fr;
+      grid-template-rows: 38vh 1fr;
+      grid-template-rows: 38dvh 1fr;
+    }
+    .sidebar {
+      border-left: none;
+      border-bottom: 1px solid var(--border);
+      min-height: 0;
+      overflow: hidden;
+    }
+    .tab-panel {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .area-list {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .area-card {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .map-container {
+      min-height: 0;
+    }
+    #map {
+      touch-action: pan-x pan-y;
+    }
+    .modal-card {
+      max-height: 90dvh;
+      max-height: 90vh;
+    }
+  }
+
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--panel); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="eyebrow">מדריך משקיעים — דובאי</div>
+      <h1>אזורי Freehold</h1>
+      <div class="subtitle">26 אזורים שבהם זרים מכל לאום יכולים לרכוש נדל"ן בבעלות מלאה (100%), בלי צורך באשרת תושב. מבוסס על חוק דובאי מס' 7/2006 ותקנה 3/2006.</div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="map">מפה ואזורים</button>
+      <button class="tab" data-tab="guide">מדריך למתחיל</button>
+      <button class="tab" data-tab="glossary">מילון מונחים</button>
+    </div>
+
+    <div class="tab-panel active" id="panel-map">
+      <div class="legend" id="legend"></div>
+      <div class="area-list" id="areaList"></div>
+    </div>
+
+    <div class="tab-panel" id="panel-guide">
+      <div class="guide-section">
+        <h3>1. מה זה בעלות Freehold בכלל?</h3>
+        <p>Freehold = בעלות מלאה ובלתי מוגבלת בזמן על הנכס ועל הקרקע שמתחתיו, רשומה בשמך ב-DLD (רשות הקרקעות של דובאי). אתה יכול למכור, להשכיר, למשכן או להעביר בירושה בלי הגבלות.</p>
+        <p>זה שונה מ-Leasehold (זכות שימוש עד 99 שנה, בלי בעלות על הקרקע) ומ-Usufruct — שתי האפשרויות היחידות הקיימות מחוץ לאזורי Freehold המיועדים.</p>
+      </div>
+
+      <div class="guide-section">
+        <h3>2. מי יכול לקנות?</h3>
+        <ul class="checklist">
+          <li>כל לאומיות, ללא הגבלה — מעל 180 לאומיות כיום קונות בדובאי</li>
+          <li>אין צורך באשרת תושב — אפשר לקנות מחו"ל מרחוק</li>
+          <li>גיל מינימום לרכישה: 21 שנה</li>
+          <li>אין הגבלה על מספר הנכסים שניתן להחזיק</li>
+          <li>יחידים וגם חברות (כולל חברות offshore / SPV)</li>
+        </ul>
+      </div>
+
+      <div class="guide-section">
+        <h3>3. כל העלויות בעת הרכישה</h3>
+        <p>מעבר למחיר הנכס, יש לתקצב 6%–9% נוספים:</p>
+        <table class="fee-table">
+          <tr><td>אגרת העברה ל-DLD</td><td>4% ממחיר הנכס</td></tr>
+          <tr><td>עמלת תיווך (שוק משני)</td><td>2% + מע"מ 5%</td></tr>
+          <tr><td>עמלת תיווך (off-plan מהיזם)</td><td>בד"כ 0 — היזם משלם</td></tr>
+          <tr><td>אגרת נאמן (trustee office)</td><td>~AED 4,000–5,000</td></tr>
+          <tr><td>הוצאת טאבו (Title Deed)</td><td>~AED 580</td></tr>
+          <tr><td>NOC מהיזם (שוק משני)</td><td>AED 500–5,000</td></tr>
+          <tr><td>רישום משכנתא (אם רלוונטי)</td><td>0.25% מסכום ההלוואה</td></tr>
+        </table>
+        <p>לדוגמה: על נכס ב-AED 1,500,000 במזומן, סך העלויות הנוספות הוא כ-AED 96,000 (כ-6.4%).</p>
+      </div>
+
+      <div class="guide-section">
+        <h3>4. אשרות תושב לפי שווי השקעה</h3>
+        <div class="visa-cards">
+          <div class="visa-card"><span class="label">אשרת נכס<br>2 שנים, מתחדשת</span><span class="amount">AED 750K+</span></div>
+          <div class="visa-card"><span class="label">אשרת פנסיה<br>5 שנים</span><span class="amount">AED 1M+</span></div>
+          <div class="visa-card"><span class="label">Golden Visa<br>10 שנים, עם בני משפחה</span><span class="amount">AED 2M+</span></div>
+        </div>
+        <p style="margin-top:10px">אין צורך בערב מקומי (sponsor) לכל אחת מהאשרות הללו. ה-Golden Visa מאפשרת לצרף בן/בת זוג, ילדים והורים.</p>
+      </div>
+
+      <div class="guide-section">
+        <h3>5. מיסוי</h3>
+        <ul class="checklist">
+          <li>אין מס שנתי על נכס (Property Tax)</li>
+          <li>אין מס רווחי הון על מכירה</li>
+          <li>אין מס הכנסה על שכר דירה בדובאי עצמה</li>
+          <li>תושבי מדינות אחרות צריכים לבדוק חובות מס בארץ המוצא שלהם</li>
+        </ul>
+      </div>
+
+      <div class="guide-section">
+        <h3>6. Off-plan לעומת Ready — מה ההבדל בפועל?</h3>
+        <p><b style="color:#F4EFE3">Ready (מוכן):</b> הנכס קיים, אפשר לראות אותו, להשכיר אותו מיד, ומקבלים טאבו מלא בסגירה.</p>
+        <p><b style="color:#F4EFE3">Off-plan (בבנייה):</b> קונים על הנייר, לרוב בתשלומים נוחים (1% לחודש או post-handover), מחיר השקה זול יותר — אך יש סיכון פיתוח. בהשקעות off-plan, ה-Oqood (רישום ביניים ב-DLD) הוא 4% ומשמש כתחליף לאגרת ההעברה; לא משולם פעמיים.</p>
+        <p>חוק האסקרו (Escrow) של דובאי מחייב שכל כספי ה-off-plan יוחזקו בחשבון מפוקח, ומשתחררים ליזם רק לפי התקדמות בנייה מאומתת — הגנה משמעותית למשקיע.</p>
+      </div>
+
+      <div class="guide-section">
+        <h3>7. רשימת בדיקה לפני חתימה</h3>
+        <ul class="checklist">
+          <li>וידוא שהאזור באמת Freehold (לא להניח — לבדוק רשמית)</li>
+          <li>וידוא שהמוכר הוא הבעלים הרשום בפועל דרך DLD</li>
+          <li>וידוא רישום היזם והפרויקט ב-RERA (לoff-plan)</li>
+          <li>בדיקת חובות שכר דירה/ועד בית (service charges) פתוחים</li>
+          <li>וידוא רישיון RERA תקף של הסוכן (לא רק "מתווך")</li>
+          <li>קריאת Form F לפני חתימה — שם רשום מי משלם מה</li>
+          <li>אישור שכל הסכומים מתועדים ב-Form A/B הרשמיים</li>
+        </ul>
+        <div class="warning-box">
+          <strong>הטעות הנפוצה ביותר:</strong> תשלום מקדמה לפני אימות בעלות רשמית ב-DLD. צילום מסך של טאבו ב-WhatsApp אינו אימות — יש להשתמש בשירות אימות הטאבו הרשמי של DLD בלבד.
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="panel-glossary">
+      <div class="guide-section">
+        <dl>
+          <div class="glossary-term"><dt>Freehold</dt><dd>בעלות מלאה ובלתי מוגבלת בזמן על נכס וקרקע, רשומה בשם הקונה ב-DLD.</dd></div>
+          <div class="glossary-term"><dt>Leasehold</dt><dd>זכות שימוש בנכס לתקופה קבועה (עד 99 שנה) בלי בעלות על הקרקע עצמה.</dd></div>
+          <div class="glossary-term"><dt>DLD</dt><dd>Dubai Land Department — רשות הקרקעות של דובאי, מנפיקת הטאבו ומפקחת על כל עסקה.</dd></div>
+          <div class="glossary-term"><dt>RERA</dt><dd>הרשות המפקחת על מתווכים ויזמים בדובאי. כל סוכן חייב רישיון RERA בתוקף.</dd></div>
+          <div class="glossary-term"><dt>Oqood</dt><dd>רישום ביניים ב-DLD לנכסי off-plan, לפני הוצאת טאבו סופי בהשלמת הבנייה.</dd></div>
+          <div class="glossary-term"><dt>NOC</dt><dd>No Objection Certificate — אישור מהיזם שאין חובות פתוחים, נדרש להעברת בעלות בשוק המשני.</dd></div>
+          <div class="glossary-term"><dt>Escrow</dt><dd>חשבון נאמנות מפוקח שמחזיק את כספי הקונים בפרויקטי off-plan, משוחרר ליזם לפי התקדמות בנייה.</dd></div>
+          <div class="glossary-term"><dt>Service Charges</dt><dd>תשלום שנתי לוועד הבית/ניהול הקהילה, מכוסה תחזוקת שטחים משותפים, אבטחה וכו'.</dd></div>
+          <div class="glossary-term"><dt>Title Deed (טאבו)</dt><dd>המסמך הרשמי המוכיח בעלות, מונפק על ידי DLD בשם הקונה.</dd></div>
+          <div class="glossary-term"><dt>Golden Visa</dt><dd>אשרת תושב ל-10 שנים, מתחדשת, להשקעת נדל"ן של 2 מיליון AED ומעלה.</dd></div>
+          <div class="glossary-term"><dt>Gross Rental Yield</dt><dd>תשואת שכירות שנתית גולמית, לפני הוצאות — שכר דירה שנתי חלקי מחיר הנכס.</dd></div>
+          <div class="glossary-term"><dt>Form A / B / F</dt><dd>טפסי RERA רשמיים: A (הסכם מוכר-מתווך), B (הסכם קונה-מתווך), F (זיכרון דברים בין הצדדים).</dd></div>
+        </dl>
+      </div>
+    </div>
+
+    <div class="footer-note">
+      נתוני מחיר ותשואה הם הערכות שוק כלליות לשנת 2026 ועשויים להשתנות. יש לאמת סטטוס Freehold של כל נכס ספציפי דרך רשות הקרקעות של דובאי (DLD) לפני רכישה. מסמך זה אינו ייעוץ משפטי או פיננסי.
+    </div>
+  </div>
+  <div class="map-container">
+    <div id="map"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-card" id="modalCard"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  const CATEGORIES = {
+    luxury: { label: 'יוקרה / Waterfront', color: '#C9A86A' },
+    urban: { label: 'מרכז עירוני', color: '#7BA8C9' },
+    offplan: { label: 'Off-plan פעיל', color: '#D4685A' },
+    yield: { label: 'ערך / תשואה גבוהה', color: '#5FA88A' },
+    family: { label: 'וילות / משפחות', color: '#9A8FC9' },
+  };
+
+  const AREAS = [
+    { name: 'Palm Jumeirah', cat: 'luxury', lat: 25.1124317, lng: 55.138978, summary: 'יקרה האייקונית הראשונה בעולם — חצי אי בצורת דקל עם 17 "פרונדים" (אצבעות) שעליהם וילות חוף פרטיות, וגזרת "טראנק" (הגזע) עם מגדלי דירות ובתי מלון.', detail: 'נחלקת לשלושה סוגי נכס: וילות "Signature" עם חוף פרטי וגישה ישירה לים (5-7 חדרים, 7,000-11,000 רגל²); וילות "Garden Homes" בצד הפנימי של הפרונד עם חוף קהילתי (4-5 חדרים); ובתי יוקרה משוחזרים/בנויים מחדש עם מותגים כמו Bulgari ו-Cavalli. כ-1,500 מגרשי וילה בלבד קיימים על האי — אין עוד בנייה עתידית, מה שתומך בערך לאורך זמן.', priceExamples: [{ type: '1-2 חדרים (Shoreline / Trunk)', price: 'AED 2.5–5.5M' }, { type: 'וילה 3 חדרים', price: 'AED 10.5–24M' }, { type: 'וילה 5 חדרים Signature', price: 'AED 36–75M' }, { type: 'וילה ענק / מותג (6-7 חד.)', price: 'AED 49–161M+' }], yield: '4–6.5%', developers: ['Nakheel (מפתח מקורי)', 'Ellington', 'Omniyat', '25 Degrees (בוטיק)'], extra: 'יש להבחין בין הפרונד (חוף פרטי, יקר) לתראנק (דירות, נגיש יותר). שכר דירה שירות: AED 8–15/sqft לשנה.', tags: [] },
+
+    { name: 'Dubai Marina', cat: 'luxury', lat: 25.0806744, lng: 55.1397921, summary: 'תעלה מעשה ידי אדם של 3.5 ק"מ עם יותר מ-200 מגדלי מגורים, מהשווקים הנזילים והבוגרים ביותר בדובאי. "ריביירה" אורבנית עם טיילת, מסעדות וגישה לחוף JBR.', detail: 'מגדלים ותיקים (לפני 2010) מציעים שטחים גדולים יותר במחיר נמוך יחסית אך עם דמי ניהול גבוהים יותר (מתקני קירור ישנים). מגדלים חדשים (Marina Gate, Marina Shores) מציעים מפרט גבוה ומיתוג. השקות חדשות ב-2026 (Marina Shores של Emaar, LIV Waterside) נמכרות ב-AED 3,200-3,700/sqft.', priceExamples: [{ type: 'סטודיו', price: 'AED 600K–1.4M' }, { type: '1 חדר', price: 'AED 1.6–3.6M' }, { type: '2 חדרים', price: 'AED 2.5–5.5M' }, { type: 'פנטהאוז', price: 'AED 8–15M' }], yield: '5.5–7.8% (קצר-טווח עד 11%)', developers: ['Emaar', 'Select Group', 'DAMAC', 'Verve Developments'], extra: 'תחנות מטרו: DMCC ו-Sobha Realty. אסטרטגיית "Value-Add": קניית מגדלים ישנים ב-AED 1,400/sqft ושיפוץ.', tags: ['yield'] },
+
+    { name: 'JBR', cat: 'luxury', lat: 25.0769441, lng: 55.1341346, summary: 'רצועת חוף עם טיילת מסחרית פעילה ("The Walk") הצמודה למרינה. מגדלים ותיקים יחסית (שנות 2007-2010), פופולרי לתיירות ושכירות קצרת-טווח.', detail: 'הדירות כאן בדרך כלל גדולות יותר מבמרינה אך עם מפרט ישן יותר. הביקוש לשכירות מבוסס בעיקר על תיירים ואנשי עסקים שרוצים גישה ישירה לחוף. תשואות שכירות לתקופות קצרות גבוהות בעונת התיירות (אוקטובר-מרץ).', priceExamples: [{ type: 'סטודיו', price: 'AED 900K–1.3M' }, { type: '1 חדר', price: 'AED 1.4–2.2M' }, { type: '2 חדרים', price: 'AED 2.2–3.8M' }], yield: '5–6.5% (קצר-טווח גבוה יותר)', developers: ['Dubai Properties (מפתח מקורי)', 'Various'], extra: 'שכר דירה שנתי לדירת חדר: AED 90,000–220,000 (תיירות גבוהה משפיעה).', tags: [] },
+
+    { name: 'Bluewaters Island', cat: 'luxury', lat: 25.0796205, lng: 55.1224096, summary: 'אי בוטיק חדש יחסית, ביתו של גלגל הענק Ain Dubai. שילוב של דירות יוקרה, קמעונאות ובתי מלון על אי קטן ומבודד יחסית.', detail: 'פיתוח של Meraas, צמוד למרינה אך עם זהות נפרדת. ביקוש גובר מקונים שרוצים כתובת ייחודית ופחות צפופה מהמרינה, עם נגישות הליכה לחוף JBR.', priceExamples: [{ type: '1 חדר', price: 'AED 1.8–2.8M' }, { type: '2 חדרים', price: 'AED 2.8–4.5M' }, { type: 'פנטהאוז', price: 'AED 6M+' }], yield: '4–5.5%', developers: ['Meraas'], extra: 'מחובר לחוף JBR בגשר הולכי רגל. שירות תחבורה RTA למרינה.', tags: [] },
+
+    { name: 'Emaar Beachfront', cat: 'offplan', lat: 25.0983984, lng: 55.1406875, summary: 'אי פרטי בין מרינה ל-JBR, פותח ע"י Emaar בהשקעת off-plan חופית עם 27 מגדלים מתוכננים. ביקוש משקיעים גבוה לאור המיתוג והמיקום.', detail: 'הפרויקט עדיין בבנייה בחלקים, עם מספר מגדלים שכבר נמסרו (Beach Vista, Sunrise Bay, Address Beach Resort) ואחרים עדיין בתכנון. כל היחידות נהנות מנוף חוף ישיר.', priceExamples: [{ type: '1 חדר', price: 'AED 2.2–3.2M' }, { type: '2 חדרים', price: 'AED 3.5–5.5M' }, { type: 'וילה/פנטהאוז', price: 'AED 8M+' }], yield: '4.5–6%', developers: ['Emaar'], extra: 'תוכניות תשלום 80/20 או 90/10 נפוצות. בדוק תאריך מסירה ספציפי לכל מגדל.', tags: ['offplan'] },
+
+    { name: 'Dubai Islands', cat: 'offplan', lat: 25.2985641, lng: 55.3122779, summary: 'ארכיפלג מעשה ידי אדם בן 5 איים מול חוף דיירה (לשעבר Deira Islands), בפיתוח של Nakheel — אותו המפתח שמאחורי Palm Jumeirah. מוסיף 20+ ק"מ חוף חדש לדובאי, עם יותר מ-80 בתי מלון מתוכננים, מגרשי גולף ושווקים.', detail: 'מתחלק ל-5 איים: Central Island, Marina Island, Shore Island, Golf Island ו-Elite Island. עדיין בשלבי פיתוח מוקדמים יחסית — חלק גדול עדיין לא בנוי, אך כבר יש מלונות פעילים (RIU Dubai, Centara Mirage) ועשרות פרויקטי מגורים off-plan פעילים מיזמים שונים. מחירי דירות עלו 25.3% ב-2024 — מהעליות המהירות ביותר בדובאי, אך זה גם אומר תנודתיות וסיכון פיתוח גבוה יותר מאזורים מבוססים.', priceExamples: [{ type: '1 חדר', price: 'AED 1.3–2.1M' }, { type: '2 חדרים', price: 'AED 1.8–3.7M' }, { type: 'פנטהאוז/וילה', price: 'AED 2M–6M+' }], yield: '5–8% (השקות off-plan עד 15% מוצג ע"י משווקים)', developers: ['Nakheel (מפתח ראשי)', 'Imtiaz Developments', 'Ellington Properties', 'Samana', 'Prestige One', 'Avenew'], extra: 'אזור חדש ושאפתני — בדוק היטב את לוח הזמנים האמיתי של כל פרויקט ספציפי ב-RERA, מאחר שחלק מהפיתוח הכולל מתוכנן להימשך עד 2030.', tags: ['offplan'] },
+
+    { name: 'Downtown Dubai', cat: 'urban', lat: 25.1935406, lng: 55.2800032, summary: 'הלב התיירותי-עסקי של דובאי — ביתו של בורג\' חליפה ודובאי מול. הכתובת היוקרתית והמוכרת בעולם ביותר בעיר, עם ביקוש קבוע מתיירים ועובדים בכירים.', detail: 'מגדלים מובילים: Burj Khalifa Residences, Address Sky View, Opera Grand, The Address Residences Dubai Opera. מחיר ממוצע למ"ר Downtown הוא הגבוה מבין האזורים העירוניים בדובאי.', priceExamples: [{ type: 'סטודיו', price: 'AED 1.1–1.6M' }, { type: '1 חדר', price: 'AED 1.6–2.5M' }, { type: '2 חדרים', price: 'AED 2.5–4.5M' }, { type: 'פנטהאוז', price: 'AED 10M+' }], yield: '5–6.5%', developers: ['Emaar (מפתח דומיננטי)'], extra: 'ממוצע מ"ר: AED 3,011 (מהגבוהים בעיר). ביקוש קבוע מתיירים ל-Airbnb.', tags: [] },
+
+    { name: 'Business Bay', cat: 'urban', lat: 25.1815668, lng: 55.2715102, summary: 'מרכז עסקים מודרני על תעלת דובאי, צמוד לדאונטאון. שילוב משרדים ומגדלי מגורים, עם ביקוש שכירות חזק מאנשי עסקים ב-DIFC ודאונטאון הסמוכים.', detail: 'יחידות פני התעלה (Marasi Drive) מתחרות במחיר עם מגדלי מרינה. הרחובות הפנימיים (Al Abraj Street) מציעים ערך טוב יותר למ"ר. צמיחת מחירים מהירה — 17.4% בשנה האחרונה, המובילה בדובאי.', priceExamples: [{ type: 'סטודיו', price: 'AED 700K–1.1M' }, { type: '1 חדר', price: 'AED 1.1–1.8M' }, { type: '2 חדרים', price: 'AED 2.2–4M' }], yield: '5.5–9% (פרימיום עד 8-9%)', developers: ['Select Group', 'DAMAC', 'Deyaar', 'Binghatti', 'Sobha'], extra: 'מ"ר ממוצע: AED 2,547–2,673 (המוביל בצמיחה ב-2026). 11,600+ עסקאות בשנה האחרונה.', tags: ['yield'] },
+
+    { name: 'DIFC', cat: 'urban', lat: 25.20884, lng: 55.2770323, summary: 'מרכז פיננסי בינלאומי עצמאי משפטית, עם בתי משפט בריטיים ורגולציה פיננסית נפרדת. דירות יוקרה לאנשי עסקים בכירים, קרוב לבנקים ולמשרדי עורכי דין גלובליים.', detail: 'שכונה קומפקטית עם פחות מגדלי מגורים מאזורים אחרים, מה שתורם למחיר פרימיום. ביקוש שכירות חזק מאוד מעובדים פיננסים שרוצים הליכה לעבודה.', priceExamples: [{ type: '1 חדר', price: 'AED 1.8–2.8M' }, { type: '2 חדרים', price: 'AED 3–5M' }], yield: '5.5–6.5%', developers: ['DIFC Authority', 'Various boutique'], extra: 'שכר דירה לסטודיו: AED 7,500–9,000/חודש — מהגבוהים בעיר ביחס לגודל.', tags: [] },
+
+    { name: 'Dubai Creek Harbour', cat: 'offplan', lat: 25.2066955, lng: 55.3477911, summary: 'פיתוח off-plan מתמשך של Emaar על נחל דובאי, כ-10 ק"מ ממרכז דאונטאון. מציע 25-35% מחיר נמוך יותר למ"ר מדאונטאון עם נופים לנחל ולעיר.', detail: 'מתחלק ל-4 רבעים מרכזיים: Creek Beach (הדרומי, מגדלים מושלמים — Bayshore, Surf, Sunset), Island District (יוקרתי ביותר, Address Residences), The Cove (טאון-האוסים למשפחות), Harbour Views/Creekside (ערך כניסה הזול ביותר).', priceExamples: [{ type: '1 חדר (Creek Beach)', price: 'AED 1.6–2.1M' }, { type: '2 חדרים', price: 'AED 2.6–3.4M' }, { type: 'טאון-האוס 3 חד. (The Cove)', price: 'AED 4.5–6M' }], yield: '4.8–6.5%', developers: ['Emaar (מפתח בלעדי)'], extra: 'צמיחת הון 9-14% בשנה מאז 2022. מגדל Creek Tower בהקפאה זמנית.', tags: ['offplan'] },
+
+    { name: 'Al Jaddaf', cat: 'offplan', lat: 25.216757, lng: 55.3309395, summary: 'אזור על נחל דובאי שהורחב ל-Freehold ב-2023-2025, עם גישה למטרו הקו הירוק. שילוב מגורים ותרבות (בית האופרה והמוזיאון העתידי).', detail: 'אזור מתעורר עם ערך כניסה זול יותר מאזורי הנחל המבוססים, אך עם פוטנציאל צמיחה לאור הקרבה ל-Downtown ו-DIFC ושיפור התחבורה.', priceExamples: [{ type: 'סטודיו', price: 'AED 600K–900K' }, { type: '1 חדר', price: 'AED 900K–1.4M' }, { type: '2 חדרים', price: 'AED 1.4–2.2M' }], yield: '6.5–7.5%', developers: ['Azizi', 'Dubai Properties', 'Various'], extra: 'תחנת מטרו קו ירוק. הורחב ל-Freehold לאחרונה — מעט סוכנים מודעים לזה.', tags: ['offplan'] },
+
+    { name: 'Dubai Hills Estate', cat: 'offplan', lat: 25.1156255, lng: 55.2682079, summary: 'קהילה ירוקה ומתוכננת עם מגרש גולף 18 חורים ומרכז קניות מהגדולים בדובאי. נחשב "המרכז החדש" של דובאי, עם וילות, דירות וטאון-האוסים. תשואת 1-חדר עומדת על 7.8%, מהגבוהות באזורי ה-off-plan.', detail: 'מגרשי וילה כמעט אפסים — מחירי וילה ימשיכו לעלות (תחזית 7-10% ב-2026) בגלל מחסור בהיצע. דירות off-plan נמכרות ב-AED 2,455/sqft בממוצע, מעט מעל דירות שוק משני (AED 2,183/sqft). פרויקטים בולטים: Address Villas Hillcrest (מ-AED 21.7M), Park Gate (מ-AED 10.4M), Lime Gardens (מ-AED 1.12M), Hills Park (מ-AED 1.21M), Parkwood ו-Hillsedge (מ-AED 1.75-1.84M).', priceExamples: [{ type: '1 חדר (off-plan)', price: 'AED 1.1–1.8M' }, { type: '2 חדרים', price: 'AED 1.8–3M' }, { type: 'וילה 4-5 חד.', price: 'AED 10–22M' }], yield: '5.9–8.2% (דירות), 5.5–6.5% (וילות)', developers: ['Emaar (דומיננטי)', 'Ellington', 'Royal Development Company', 'National Properties'], extra: 'דמי שירות: AED 15–22/sqft לשנה. הרחבת קו המטרו הכחול תומכת בעליית ערך.', tags: ['offplan', 'yield'] },
+
+    { name: 'JVC', cat: 'yield', lat: 25.0608609, lng: 55.2088007, summary: 'הקהילה הצפופה והפעילה ביותר במגזר ה"אמצע" של דובאי — 131 השקות off-plan פעילות מ-61 יזמים שונים. כבר לא "הזולה ביותר" אך עדיין מציעה ערך טוב עם תשתית מבוססת (בתי ספר, מרפאות, חנויות).', detail: 'מחירים עלו 22.7% בשנה האחרונה. דירת 1 חדר שעלתה AED 500K ב-2024 נסחרת היום ב-650-700K. וילות וטאון-האוסים יקרים בהרבה מהדירות (טאון-האוס ממוצע AED 3.62M, וילה AED 4.48M, עלייה 22.5% בשנה). Binghatti הוא היזם הפעיל ביותר עם השקות מרובות במקביל.', priceExamples: [{ type: 'סטודיו', price: 'AED 550K–750K' }, { type: '1 חדר', price: 'AED 700K–1.13M' }, { type: '2 חדרים', price: 'AED 1.1–1.8M' }, { type: 'טאון-האוס', price: 'AED 2.5–4.5M' }], yield: '7–8.5%', developers: ['Binghatti (הפעיל ביותר)', 'Nakheel', 'Danube', 'Samana'], extra: 'אין תחנת מטרו (לא מתוכננת לפני 2030). תחרות גבוהה בין מגדלים דומים — בדוק את הבניין הספציפי.', tags: ['yield'] },
+
+    { name: 'JLT', cat: 'yield', lat: 25.0676364, lng: 55.1436356, summary: 'קהילה מבוססת ומלאה לחלוטין (80 מגדלים, 26 אשכולות) סביב 4 אגמים מעוצבים, מנוהלת ע"י DMCC — אזור חופשי עם 24,000+ עסקים רשומים. ביקוש שכירות מובנה ולא תלוי-עונה ממקצועני DMCC.', detail: 'מ"ר ממוצע AED 1,960, עלייה צפויה 8-10% ב-2026. עדיין 20-25% זול יותר מהמרינה הצמודה, עם תשואות גבוהות יותר. דירת 1 חדר שנרכשה ב-AED 900K ב-2021 נמכרת היום ב-1.05M (עלייה 17% + שכירות).', priceExamples: [{ type: 'סטודיו', price: 'AED 550K–750K' }, { type: '1 חדר', price: 'AED 900K–1.3M' }, { type: '2 חדרים', price: 'AED 1.4–2.1M' }], yield: '6.5–7.5%', developers: ['מספר יזמים (קהילה מבוססת, לא יזם דומיננטי בודד)'], extra: 'שתי תחנות מטרו. אזור חופשי DMCC — דרישת שכירות עסקית גבוהה.', tags: ['yield'] },
+
+    { name: 'Dubai South', cat: 'yield', lat: 24.9114245, lng: 55.1176325, summary: 'אזור מתפתח סביב שדה התעופה Al Maktoum International החדש, ה-Expo City, ולוגיסטיקה. מהאזורים הזולים ביותר בדובאי עם פוטנציאל צמיחה ארוך-טווח לאור פיתוח שדה התעופה.', detail: 'נחשב להזדמנות "early mover" — מחירים נמוכים כרגע אך תלוי בקצב פיתוח התשתית. Expo City Dubai (חלק מהאזור) מתפתח עם פרויקטי מגורים חדשים כמו Expo Valley Views וTerra Gardens.', priceExamples: [{ type: 'סטודיו', price: 'AED 350K–500K' }, { type: '1 חדר', price: 'AED 500K–800K' }, { type: 'טאון-האוס', price: 'AED 1.2–2M' }], yield: '7–9%', developers: ['Dubai South Properties', 'Emaar (Expo City)', 'DWTC'], extra: 'תלוי בהתקדמות שדה התעופה החדש. מתאים להשקעה ארוכת-טווח, לא לתשואה מיידית.', tags: ['yield', 'offplan'] },
+
+    { name: 'Dubai Silicon Oasis', cat: 'yield', lat: 25.1238367, lng: 55.3820803, summary: 'אזור טכנולוגי-עסקי עם מגדלי מגורים, מנוהל ע"י DSOA. דמי שירות נמוכים יחסית ותשואה יציבה ממקצועני טכנולוגיה ובריאות.', detail: 'יחס שכירות-למחיר חזק מאוד — אחד הטובים בעיר לפי ניתוחי שוק. אין תחנת מטרו ישירה אך תחבורה סבירה.', priceExamples: [{ type: 'סטודיו', price: 'AED 350K–500K' }, { type: '1 חדר', price: 'AED 500K–750K' }, { type: '2 חדרים', price: 'AED 800K–1.2M' }], yield: '6.6–8%', developers: ['DSOA (מפתח האזור)', 'Various'], extra: 'ביקוש קבוע ממקצועני הייטק. יחס שכירות-מחיר מהבריאים בדובאי.', tags: ['yield'] },
+
+    { name: 'Arjan', cat: 'yield', lat: 25.0610951, lng: 55.2377089, summary: '"המחוז הבוטיק" של דובאי — בניינים נמוכים-בינוניים, קרבה לגן הפרחים Miracle Garden ולגן הפרפרים. דירת 1 חדר פרימיום ב-40% פחות ממחיר דירה דומה בדובאי הילס הסמוכה.', detail: 'בלי תחנת מטרו (לא מתוכננת לפני 2030) — לא מתאים למי שמחפש נוחות תחבורה. דמי שירות משתנים מאוד בין בניינים (AED 10.17 עד AED 18.15/sqft) — בדיקת הבניין הספציפי קריטית לתשואה נטו.', priceExamples: [{ type: 'סטודיו', price: 'AED 400K–600K' }, { type: '1 חדר', price: 'AED 700K–1.3M' }, { type: '2 חדרים', price: 'AED 1.1–1.8M' }], yield: '7–8.5%', developers: ['Danube', 'Vincitore', 'Samana', 'Iman Developers', 'Binghatti'], extra: 'תשואה נטו יכולה להשתנות ב-1%+ בין בניינים לפי דמי שירות — בדוק לפני קנייה.', tags: ['yield'] },
+
+    { name: 'International City', cat: 'yield', lat: 25.1675055, lng: 55.4086404, summary: 'הכניסה הזולה ביותר לשוק הנדל"ן בדובאי — שכונות בעיצוב בינלאומי (סין, רוסיה, מרוקו ועוד) עם 26,000+ דירות. תשואות הגבוהות ביותר בעיר, אך מרוחק יחסית ממרכזי העיר.', detail: 'מתאים למשקיע שמחפש תשואת שכירות מקסימלית עם השקעה התחלתית מינימלית, פחות מתאים לקצב צמיחת הון מהיר.', priceExamples: [{ type: 'סטודיו', price: 'AED 300K–420K' }, { type: '1 חדר', price: 'AED 420K–600K' }], yield: '8.5–9.5%', developers: ['Nakheel (מפתח מקורי)'], extra: 'תשואה הגבוהה ביותר בדובאי, אך נמוך בסקאלת היוקרה/מיקום.', tags: ['yield'] },
+
+    { name: 'Dubai Sports City', cat: 'yield', lat: 25.0391345, lng: 55.2176352, summary: 'קהילה ייעודית-ספורט (50 מיליון רגל²) עם תשתית אמיתית: אצטדיון Dubai International Stadium (קריקט, ICC), מגרש גולף Els Club, ואולם ספורט רב-תכליתי. מציע דירות ב-3 אזורים (Canal Residence, Victory Heights, Gallery Villas) ב-AED 350K-700K כניסה, עם תשואות 7-9% — מהגבוהות בעיר.', detail: 'בעיקר דירות (6,000+) עם מעט וילות (1,000+, רוב הוילות מרוכזות ב-Victory Heights, שמתומחר כקהילה נפרדת ב-AED 2.2-10M+). מגדלים חדשים (Bloom Towers) במחיר פרימיום 20-30% מעל המלאי הישן (Champions Towers, Olympic Park). אין תחנת מטרו ישירה. 20 פרויקטי off-plan פעילים נכון ל-2026.', priceExamples: [{ type: 'סטודיו', price: 'AED 350K–530K' }, { type: '1 חדר', price: 'AED 500K–875K' }, { type: '2 חדרים', price: 'AED 800K–1.3M' }, { type: 'וילה (Victory Heights)', price: 'AED 2.2–10M+' }], yield: '7–9% (סטודיו עד 9%)', developers: ['Diamond Developers', 'Bloom Properties', 'Danube', 'Binghatti'], extra: 'בלי תחנת מטרו ובלי קניון גדול בתוך הקהילה. ימי אירוע באצטדיון יוצרים פקקים מקומיים.', tags: ['yield'] },
+
+    { name: 'Discovery Gardens', cat: 'yield', lat: 25.0390117, lng: 55.1444815, summary: 'קהילה ותיקה (2008) עם 6 אשכולות נושאיים (זן, ים-תיכוני, מוגולי ועוד), 300 בניינים ו-26,000+ דירות. אחת התשואות הגבוהות בעיר עם תשתית מבוססת ותחנת מטרו.', detail: 'קרבה ל-Ibn Battuta Mall (מהקניונים הגדולים בעיר) ולמרינה (15 דקות נסיעה). פופולרי על משפחות ועל שוכרים בתחילת דרכם.', priceExamples: [{ type: 'סטודיו', price: 'AED 380K–530K' }, { type: '1 חדר', price: 'AED 550K–750K' }], yield: '7.5–10.7%', developers: ['Nakheel (מפתח מקורי)'], extra: 'תחנת מטרו ישירה (קו אדום, Route 2020). מ-13 בריכות שחייה קהילתיות.', tags: ['yield'] },
+
+    { name: 'Arabian Ranches', cat: 'family', lat: 25.0574181, lng: 55.2870926, summary: 'אחת מקהילות הווילות הראשונות והמבוססות ביותר בדובאי, של Emaar. שקטה, ירוקה, ופופולרית מאוד על משפחות זרות שמתגוררות בדובאי לתקופות ארוכות.', detail: 'מבנה קהילתי מסורתי עם בתי ספר, מועדון גולף, ומתקני ספורט. פחות מתאים למשקיע שמחפש תשואת שכירות גבוהה — יותר מתאים לרכישה למגורים עצמיים או השקעה ארוכת-טווח.', priceExamples: [{ type: 'וילה 3 חד.', price: 'AED 2.5–4M' }, { type: 'וילה 4-5 חד.', price: 'AED 4–7M' }], yield: '4.5–5.5%', developers: ['Emaar'], extra: 'קהילה ותיקה ומבוססת — סיכון פיתוח אפסי, ערך יציב.', tags: [] },
+
+    { name: 'Town Square', cat: 'family', lat: 25.0042918, lng: 55.2925556, summary: 'קהילת Nshama עם פארק מרכזי גדול, מסילות ריצה ורכיבה, ופארק סקייטבורד. וילות וטאון-האוסים נגישים יותר ממחיר אזורי וילות אחרים, פופולרי על משפחות צעירות.', detail: 'אחת מהקהילות עם התשואה הגבוהה ביותר מבין "אזורי המשפחות" (9.2% לפי כמה מקורות) בגלל מחיר כניסה נמוך יחסית. תלונות נפוצות על רגולציה קפדנית של ה-HOA.', priceExamples: [{ type: 'דירה 1-2 חד.', price: 'AED 600K–1.1M' }, { type: 'טאון-האוס 3 חד.', price: 'AED 1.3–2M' }], yield: '6–9.2%', developers: ['Nshama'], extra: 'תשואה גבוהה יחסית לקטגוריית "משפחות". כללי קהילה (HOA) קפדניים יחסית.', tags: ['yield'] },
+
+    { name: 'MBR City / Sobha Hartland', cat: 'family', lat: 25.1766361, lng: 55.3110391, summary: 'Mohammed Bin Rashid City — לא שכונה אחת אלא "מטרו-קהילה" עצומה (20% גדולה ממנהטן) הכוללת כמה תת-קהילות יוקרתיות סביב לגונת קריסטל מלאכותית. District One הוא ה"כתר" שלה — מנשנים על המים שנמכרים ב-AED 80M+. Sobha Hartland (8 מיליון רגל²) הוא תת-הקהילה הפעילה והמוכרת ביותר, עם איכות בנייה מהגבוהות בדובאי.', detail: 'תת-קהילות עיקריות: District One (וילות AED 12-25M, מנשנים 25-80M+), Sobha Hartland (וילות 7-18M, טאון-האוסים, דירות "Waves" מ-1.5M), Sobha Hartland II (חדש יותר, אשכולות Riverside Crescent/Skyscape/Skyvue), MAG City, Nad Al Sheba Gardens. כל התת-קהילות Freehold מלא. אין תחנת מטרו בתוך האזור עצמו — הקרובה היא Business Bay (5-10 דק׳ נסיעה).', priceExamples: [{ type: '1 חדר (Sobha Creek Vistas)', price: 'AED 1.2–1.5M' }, { type: '2-3 חדרים', price: 'AED 1.9–3.5M' }, { type: 'וילה Sobha Hartland', price: 'AED 7–18M' }, { type: 'מנשן District One', price: 'AED 25–80M+' }], yield: '3.5–8% (תלוי תת-קהילה — דירות גבוה, מנשנים נמוך)', developers: ['Meydan Sobha (JV — District One)', 'Sobha Realty', 'MAG (Meydan)', 'Nakheel'], extra: 'עליית הון מרשימה: וילות District One עלו 60-90% מ-2021. שתי בתי ספר בריטיים בדירוג "Outstanding" בתוך הקהילה.', tags: ['yield'] },
+
+    { name: 'Tilal Al Ghaf', cat: 'family', lat: 25.0252697, lng: 55.2290966, summary: 'קהילת וילות וטאון-האוסים יוקרתית של Majid Al Futtaim (לא Emaar/Nakheel/DAMAC — שחקן חדש ויציב), בנויה סביב לגונה שחייה אמיתית של 70,000 רגל² עם חוף חול מיובא. שם הקהילה פירושו "גבעות עץ הגאף" — העץ הלאומי של האמירויות.', detail: 'מחולקת לאשכולות: Harmony 1-3 (וילות 4,500-8,000 רגל² מגרש, חלק נמסר ופעיל), Serenity Mansions (5-7 חדרים, 12,000+ רגל²), Elan (טאון-האוסים, נקודת הכניסה הנגישה ביותר), Elysian Mansions (94 וילות חוף-לגונה חדשות, השלמה אמצע 2026), Alaya (407 וילות חדשות). השקעת תשתית של AED 3 מיליארד בבנייה נוכחית.', priceExamples: [{ type: 'טאון-האוס 3 חד. (Elan)', price: 'AED 4–4.4M' }, { type: 'וילה 4 חד.', price: 'AED 6.9M' }, { type: 'וילה 5-6 חד.', price: 'AED 14.5–15M' }, { type: 'מנשן חוף (Elysian)', price: 'AED 18–52M' }], yield: '6–9% (טאון-האוס גבוה יותר מוילה)', developers: ['Majid Al Futtaim (מפתח יחיד)'], extra: 'דמי שירות AED 14-18/sqft. עלייה 18% למ"ר בשנה. בית ספר בריטי (Royal Grammar School Guildford) בתוך הקהילה.', tags: [] },
+
+    { name: 'The Valley by Emaar', cat: 'family', lat: 25.0108317, lng: 55.4439529, summary: 'קהילת וילות וטאון-האוסים "פרברית" של Emaar על כביש דובאי-אל-עין — האזור הראשון של Emaar שמתמקד באורח חיים פרברי-משפחתי במחיר נגיש יותר מדובאי הילס, עם 40-60% הנחה על מחיר דומה בדובאי הילס.', detail: 'Phase 1 (2019, נמסר ברובו): אשכולות Eden, Nara, Talia, Orania. Phase 2 (2024+, עדיין בבנייה): 200 הקטר, 4,500+ יחידות חדשות, אשכולות Farm Gardens, Elora, Rivana, Avena, Alana, Nima. קונים מוקדמים ב-Phase 1 (2019-2020) ראו עלייה של 25-40% עד היום.', priceExamples: [{ type: 'טאון-האוס 3 חד.', price: 'AED 1.1–2.4M' }, { type: 'וילה 4 חד.', price: 'AED 4.4–6.9M' }, { type: 'וילה 5 חד. (Farm Gardens)', price: 'AED 5.1–7.3M' }], yield: '5.5–7%', developers: ['Emaar (מפתח יחיד)'], extra: 'דמי שירות AED 14-18/sqft. ללא תחנת מטרו — תלוי ברכב. מיקום פריפריאלי יותר מקהילות Emaar אחרות.', tags: ['offplan'] },
+
+    { name: 'DAMAC Hills', cat: 'family', lat: 25.0292369, lng: 55.2527796, summary: 'הקהילה הראשונה והדגל של DAMAC, בנויה סביב Trump International Golf Club Dubai — מגרש גולף צ\'מפיונשיפ 18 חורים שעוצב ע"י Gil Hanse, עם מועדון יוקרה 30,000 רגל². כולל גם את "Trump Estates" — וילות ומנשנים ממותגים בשם טראמפ.', detail: 'שונה מ-DAMAC Hills 2 (לשעבר Akoya Oxygen) — קהילה נפרדת וגדולה יותר על כביש אל-קודרה, לעיתים מבלבלת קונים. כולל גם Akoya Park (200+ וילות), Malibu Bay (בריכת גלים בסטייל קליפורניה), ומגוון מוצרים מדירות ועד מנשנים ממותגים (Cavalli Estates, GEMS Estates).', priceExamples: [{ type: 'טאון-האוס/וילה כניסה', price: 'AED 2.3–3.5M' }, { type: 'וילה 4-5 חד.', price: 'AED 4–6.5M' }, { type: 'וילת Trump Estates', price: 'AED 3.3–26M' }], yield: '5–6.5%', developers: ['DAMAC Properties (מפתח יחיד)'], extra: 'אין תחנת מטרו בתוך הקהילה. ודא אם המודעה מתייחסת ל-DAMAC Hills או DAMAC Hills 2 — שמות מבלבלים בשוק.', tags: [] },
+  ];
+
+  let activeFilters = new Set(Object.keys(CATEGORIES));
+  const markers = {};
+
+  const map = L.map('map', {
+    zoomControl: true,
+    attributionControl: true,
+  }).setView([25.12, 55.22], 11);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    maxZoom: 19,
+  }).addTo(map);
+
+  function makeIcon(color, highlighted) {
+    const size = highlighted ? 26 : 16;
+    const glow = highlighted ? `0 0 0 6px ${color}33, 0 0 14px 4px ${color}aa` : `0 0 0 2px ${color}55`;
+    const border = highlighted ? '3px solid #F4EFE3' : '2px solid #0F1419';
+    return L.divIcon({
+      className: '',
+      html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:${border};box-shadow:${glow};transition:width 0.15s,height 0.15s;"></div>`,
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2],
+    });
+  }
+
+  function setMarkerHighlight(areaName, on) {
+    const area = AREAS.find(a => a.name === areaName);
+    const marker = markers[areaName];
+    if (!area || !marker) return;
+    const color = CATEGORIES[area.cat].color;
+    marker.setIcon(makeIcon(color, on));
+    if (on) marker.setZIndexOffset(1000);
+    else marker.setZIndexOffset(0);
+  }
+
+  function buildPopup(area) {
+    return `<div class="popup-title">${area.name}</div>
+      <div class="popup-notes">${area.summary}</div>
+      <div style="margin-top:8px;font-size:11.5px;color:#9A9488;line-height:1.6;">
+        <div><b style="color:#5FA88A">תשואה:</b> ${area.yield}</div>
+        <div><b style="color:#7BA8C9">יזמים:</b> ${area.developers.slice(0,2).join(', ')}${area.developers.length > 2 ? ' ועוד' : ''}</div>
+      </div>`;
+  }
+
+  AREAS.forEach(area => {
+    const color = CATEGORIES[area.cat].color;
+    const marker = L.marker([area.lat, area.lng], { icon: makeIcon(color) })
+      .addTo(map)
+      .bindPopup(buildPopup(area));
+    marker.on('click', () => {});
+    markers[area.name] = marker;
+  });
+
+  function renderLegend() {
+    const legendEl = document.getElementById('legend');
+    legendEl.innerHTML = '';
+    Object.entries(CATEGORIES).forEach(([key, cat]) => {
+      const chip = document.createElement('div');
+      chip.className = 'legend-chip' + (activeFilters.has(key) ? '' : ' inactive');
+      chip.innerHTML = `<span class="legend-dot" style="background:${cat.color}"></span>${cat.label}`;
+      chip.onclick = () => {
+        if (activeFilters.has(key)) activeFilters.delete(key);
+        else activeFilters.add(key);
+        renderLegend();
+        renderList();
+        updateMarkerVisibility();
+      };
+      legendEl.appendChild(chip);
+    });
+  }
+
+  function updateMarkerVisibility() {
+    AREAS.forEach(area => {
+      const marker = markers[area.name];
+      if (activeFilters.has(area.cat)) {
+        if (!map.hasLayer(marker)) marker.addTo(map);
+      } else {
+        if (map.hasLayer(marker)) map.removeLayer(marker);
+      }
+    });
+  }
+
+  function clearAllHighlights() {
+    AREAS.forEach(a => setMarkerHighlight(a.name, false));
+    document.querySelectorAll('.area-card.active').forEach(el => el.classList.remove('active'));
+  }
+
+  function openAreaModal(area) {
+    clearAllHighlights();
+    const color = CATEGORIES[area.cat].color;
+    const modal = document.getElementById('modalCard');
+    modal.innerHTML = `
+      <button class="modal-close" id="modalCloseBtn" aria-label="סגור">✕</button>
+      <div class="modal-eyebrow" style="color:${color}">${CATEGORIES[area.cat].label}</div>
+      <div class="modal-title">${area.name}</div>
+      <div class="modal-summary">${area.summary}</div>
+      <div class="modal-detail">${area.detail}</div>
+
+      <div class="modal-stats-row">
+        <div class="modal-stat-box">
+          <div class="label">תשואה גולמית</div>
+          <div class="value">${area.yield}</div>
+        </div>
+      </div>
+
+      <div class="modal-section-title">דוגמאות מחירים אופייניות</div>
+      <table class="price-table">
+        ${area.priceExamples.map(p => `<tr><td>${p.type}</td><td>${p.price}</td></tr>`).join('')}
+      </table>
+
+      <div class="modal-section-title">יזמים פעילים באזור</div>
+      <div class="developer-chips">
+        ${area.developers.map(d => `<span class="developer-chip">${d}</span>`).join('')}
+      </div>
+
+      <div class="modal-extra">${area.extra}</div>
+    `;
+    document.getElementById('modalCloseBtn').onclick = closeAreaModal;
+    document.getElementById('modalOverlay').classList.add('open');
+  }
+
+  function closeAreaModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+    clearAllHighlights();
+  }
+
+  document.getElementById('modalOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'modalOverlay') closeAreaModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeAreaModal();
+  });
+
+  function renderList() {
+    const listEl = document.getElementById('areaList');
+    listEl.innerHTML = '';
+    AREAS.filter(a => activeFilters.has(a.cat)).forEach(area => {
+      const color = CATEGORIES[area.cat].color;
+      const card = document.createElement('div');
+      card.className = 'area-card';
+      card.innerHTML = `
+        <div class="area-card-head">
+          <span class="area-dot" style="background:${color}"></span>
+          <span class="area-name">${area.name}</span>
+          <span class="expand-arrow">פרטים מלאים ›</span>
+        </div>
+        <div class="area-meta">${area.summary}</div>
+        <div class="area-stats">
+          <span class="area-stat">תשואה: <b>${area.yield}</b></span>
+          <span class="area-stat">יזמים: <b>${area.developers.length}</b></span>
+        </div>
+        ${area.tags.includes('offplan') ? '<span class="area-tag tag-offplan">Off-plan</span>' : ''}
+        ${area.tags.includes('yield') ? '<span class="area-tag tag-yield">תשואה גבוהה</span>' : ''}
+      `;
+      card.onclick = () => {
+        map.flyTo([area.lat, area.lng], 13, { duration: 0.6 });
+        markers[area.name].openPopup();
+        openAreaModal(area);
+      };
+      card.addEventListener('mouseenter', () => {
+        setMarkerHighlight(area.name, true);
+        card.classList.add('active');
+      });
+      card.addEventListener('mouseleave', () => {
+        setMarkerHighlight(area.name, false);
+        card.classList.remove('active');
+      });
+      listEl.appendChild(card);
+    });
+  }
+
+  renderLegend();
+  renderList();
+  document.getElementById('areaList').addEventListener('mouseleave', clearAllHighlights);
+
+  // Tabs logic
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+      if (tab.dataset.tab === 'map') {
+        setTimeout(() => map.invalidateSize(), 50);
+      }
+    });
+  });
+</script>
+
+</body>
+</html>
